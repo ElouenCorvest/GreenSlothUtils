@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
-def iterate_files(path_to_scan: Path, model_name: str, target_dir: Path, dirs = ''):
+
+def iterate_files(path_to_scan: Path, model_name: str, target_dir: Path, dirs = "") -> None:
 
     for src_file in os.scandir(path_to_scan):
         if os.path.isdir(src_file):
@@ -17,19 +18,20 @@ def iterate_files(path_to_scan: Path, model_name: str, target_dir: Path, dirs = 
             iterate_files(src_file, model_name, target_dir, dirs=new_dirs)
 
         elif os.path.isfile(src_file):
+            with open(src_file, 'r') as f:
+                content = f.read()
             if src_file.name.endswith('.py'):
-                with open(src_file, 'r') as f:
-                    content = f.read().replace('{{MODEL_NAME}}', model_name)
+                content = content.replace('{{MODEL_NAME}}', model_name)
 
-                dest = target_dir / dirs / src_file.name
+            dest = target_dir / dirs / src_file.name
 
-                with open(dest, 'w') as f:
-                    f.write(content)
+            with open(dest, 'w') as f:
+                f.write(content)
 
 
 def gs_install(
     model_name: str,
-    target_dir: Optional[Path] = None
+    target_dir: Optional[Path] = None,
 ):
     if target_dir is None:
         target_dir = Path('./')
@@ -40,6 +42,6 @@ def gs_install(
             exist_ok=False
         )
     except FileExistsError:
-        raise FileExistsError(f'There already exists a folder with name "{model_name}"')
+        raise FileExistsError(f"There already exists a folder with name '{model_name}'")
 
     iterate_files(Path(__file__).parent / 'modelinit', model_name, target_dir= target_dir / model_name)

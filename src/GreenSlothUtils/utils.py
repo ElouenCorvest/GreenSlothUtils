@@ -2,11 +2,12 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
+import click
 
 import latexify
 import pandas as pd
-from modelbase2 import Model
-from modelbase2.types import Derived
+from mxlpy import Model
+from mxlpy.types import Derived
 from validators import url
 
 from GreenSlothUtils import basicfuncs as bf
@@ -20,7 +21,7 @@ def extract_select_to_gloss(
     path_to_write: Path,
     value_col: str | None = None,
 ) -> None:
-    """Take a selection of a model and extract all the python vars to a csv glossary
+    """Take a selection of a model and extract all the python vars to a csv glossary.
 
     Args:
         select (dict): Part of the model to be examined
@@ -30,10 +31,7 @@ def extract_select_to_gloss(
         value_col (Optional[str], optional): Optional column name to add values to. Useful for parameters. Defaults to None.
 
     """
-    tmp_dict = {
-        key: value
-        for key, value in zip(column_names, [[] for i in column_names], strict=False)
-    }
+    tmp_dict = dict(zip(column_names, [[] for i in column_names], strict=False))
 
     for name, var in select.items():
         for i in column_names:
@@ -44,29 +42,37 @@ def extract_select_to_gloss(
             else:
                 tmp_dict[i].append("")
 
-    df = pd.DataFrame(tmp_dict)
+    gloss_df = pd.DataFrame(tmp_dict)
 
     if path_to_write.suffix != "csv":
         path_to_write = path_to_write.with_suffix(".csv")
 
-    df.to_csv(path_to_write, na_rep="", index=False)
+    gloss_df.to_csv(path_to_write, na_rep="", index=False)
 
 
-def check_gloss_to_model(from_model: Path, edit_gloss: Path, check_col: str):
+def check_gloss_to_model(from_model: Path, edit_gloss: Path, check_col: str, cli_flag: bool=False) -> None:
     df_model = pd.read_csv(from_model, keep_default_na=False)
     df_gloss = pd.read_csv(edit_gloss, keep_default_na=False)
 
     checked_model = set(df_model[check_col]) - set(df_gloss[check_col])
     checked_gloss = set(df_gloss[check_col]) - set(df_model[check_col])
-
+    
     if len(checked_model) != 0 or len(checked_gloss) != 0:
-        print(f"\n Inconsistencies found! In {from_model.name} and {edit_gloss.name}: ")
-        print(f'"{checked_model}"')
-        print(f'"{checked_gloss}"')
+        if cli_flag:
+            click.secho(f"Inconsistencies found! In {from_model.name} and {edit_gloss.name}: ", fg="red", bold=True)
+            click.echo(f"'{checked_model}'")
+            click.echo(f"'{checked_gloss}'")
+        else:    
+            print(f"Inconsistencies found! In {from_model.name} and {edit_gloss.name}: ")  # noqa: T201
+            print(f'"{checked_model}"')  # noqa: T201
+            print(f'"{checked_gloss}"')  # noqa: T201
     else:
-        print(
-            f"\n No inconsistencies found in {from_model.name} and {edit_gloss.name}! :)"
-        )
+        if cli_flag:
+            click.secho(f"No inconsistencies found in {from_model.name} and {edit_gloss.name}! :)", fg="green", bold=True)
+        else:
+            print(  # noqa: T201
+                f"No inconsistencies found in {from_model.name} and {edit_gloss.name}! :)"
+            )
 
 
 def update_txt_file(
@@ -89,7 +95,7 @@ def update_txt_file(
 
         if compare_block == inp:
             return
-        with open(path_to_write, "r+") as f:
+        with Path.open(path_to_write, "r+") as f:
             f.seek(0, 0)
             f.write(f"------- Update on {datetime.now()} -------\n\n" + inp + read)
             print(f'Updated "{path_to_write.name}"')
@@ -326,6 +332,7 @@ def update_from_main_gloss(
     gloss_path,
     model_title,
     add_to_main=False,
+    cli_flag=False
 ):
     main_gloss = pd.read_csv(
         main_gloss_path, keep_default_na=False, dtype={"Glossary ID": "Int64"}
@@ -388,8 +395,13 @@ def update_from_main_gloss(
             )
 
     gloss.to_csv(gloss_path, na_rep="", index=False)
+    
     if add_to_main:
-        inp = input("Are you sure you want to update the main gloss? y/[n] > ")
-        if inp.upper() in ["Y", "YES"]:
-            print("Main Gloss Changed")
-            main_gloss.to_csv(main_gloss_path, na_rep="", index=False)
+        if not cli_flag:
+            inp = input("Are you sure you want to update the main gloss? y/[n] > ")
+            if inp.upper() in ["Y", "YES"]:
+                print("Main Gloss Changed")
+        else:
+            click.secho("Main Gloss Changed!", fg="green", bold=True)
+        
+        main_gloss.to_csv(main_gloss_path, na_rep="", index=False)

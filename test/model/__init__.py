@@ -3,10 +3,10 @@ from .derived_quantities import include_derived_quantities
 from .rates import include_rates
 
 __all__ = [
-    '{{MODEL_NAME}}'
+    'test'
 ]
 
-def {{MODEL_NAME}}() -> Model:
+def test() -> Model:
     m = Model()
 
     m.add_parameters(
