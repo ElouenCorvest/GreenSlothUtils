@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from typing import Optional
-
+import click
 
 def iterate_files(path_to_scan: Path, model_name: str, target_dir: Path, dirs = "") -> None:
 
@@ -45,3 +45,9 @@ def gs_install(
         raise FileExistsError(f"There already exists a folder with name '{model_name}'")
 
     iterate_files(Path(__file__).parent / 'modelinit', model_name, target_dir= target_dir / model_name)
+    
+    for i in ["model_glosses", "python_written/gloss_to_python", "python_written/model_to_latex"]:
+        try:
+            Path.mkdir(target_dir / model_name / "model_info" / i, parents=True, exist_ok=True)
+        except FileExistsError:
+            raise FileExistsError(f"Something went wrong!")

@@ -83,8 +83,9 @@ def initialize(path: str, model_name: str) -> None:
     """Create '<model-name>' directory."""
     try:
         installerfuncs.gs_install(model_name, path)
-    except FileExistsError:
-        click.echo(f"There already exists a folder with name '{model_name}'!")
+    except FileExistsError as exep:
+        click.echo(str(exep))
+        
     
 @cli.command()
 @click.option("--model-dir", "-md", default=None, help="Path to model directory. Defaults to path here")

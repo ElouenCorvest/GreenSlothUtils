@@ -1,8 +1,7 @@
 from mdutils.mdutils import MdUtils  # noqa: E402
-from glossary_utils.glossary import gloss_fromCSV
+from GreenSlothUtils import gloss_fromCSV
 from pathlib import Path
 import pandas as pd
-#from models import get_model
 
 import os
 
