@@ -26,7 +26,7 @@ Issues = "https://github.com/ElouenCorvest/GreenSlothUtils/issues"
 
 [project.scripts]
 # Entry point from shell
-GreenSloth-init = "GreenSlothUtils.__main__:cli"
+GreenSloth-init = "GreenSlothUtils.__main__:start_cli"
 
 [tool.bandit]
 skips = ["B101", "B301", "B403", "B404", "B603", "B607"]

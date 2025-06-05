@@ -265,10 +265,10 @@ def update_glosses_from_main(maingloss_dir: str | None, model_dir: str | None, m
         
 @cli.command()
 @click.option("--model-dir", "-md", default=None, help="Path to model directory. Defaults to path here")
-@click.option("--modelinfo-dir", "-mid", default=None, help="Path to model info directory. Defaults to model-dir + 'model_info'")
-@click.option("--glosstopython-dir", "-gpd", default=None, help="Path to gloss to python directory. Defaults to modelinfo-dir + 'python_written/gloss_to_python'")
+@click.option("--modelinfo-dir", "-mid", default=None, help="Path to model info directory. Defaults to -md + 'model_info'")
+@click.option("--glosstopython-dir", "-gpd", default=None, help="Path to gloss to python directory. Defaults to -mid + 'python_written/gloss_to_python'")
 def python_from_gloss(model_dir: str | None, modelinfo_dir: str | None, glosstopython_dir: str | None) -> None:
-    """Write python variables from gloss"""
+    """Write Python Variables from Glossaries"""
     
     # Check all the dirs
     model_dir = Path().absolute() if model_dir is None else Path(model_dir)
@@ -300,10 +300,10 @@ def python_from_gloss(model_dir: str | None, modelinfo_dir: str | None, glosstop
         
 @cli.command()
 @click.option("--model-dir", "-md", default=None, help="Path to model directory. Defaults to path here")
-@click.option("--modelinfo-dir", "-mid", default=None, help="Path to model info directory. Defaults to model-dir + 'model_info'")
-@click.option("--modeltolatex-dir", "-mld", default=None, help="Path to model to latex directory. Defaults to modelinfo-dir + 'python_written/model_to_latex'")
+@click.option("--modelinfo-dir", "-mid", default=None, help="Path to model info directory. Defaults to -md + 'model_info'")
+@click.option("--modeltolatex-dir", "-mld", default=None, help="Path to model to latex directory. Defaults to -mid + 'python_written/model_to_latex'")
 def latex_from_model(model_dir: str | None, modelinfo_dir: str | None, modeltolatex_dir: str | None) -> None:
-    """Write python variables from gloss"""
+    """Write LaTex from Model"""
     
     # Check all the dirs
     model_dir = Path().absolute() if model_dir is None else Path(model_dir)
@@ -343,3 +343,6 @@ def latex_from_model(model_dir: str | None, modelinfo_dir: str | None, modeltola
         )
         
     export_odes_as_latex(m=m, path_to_write=modeltolatex_dir / "model_odes.txt")
+    
+def start_cli() -> None:
+    cli(max_content_width=200)

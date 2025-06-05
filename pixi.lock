@@ -433,7 +433,7 @@ packages:
 - pypi: .
   name: greenslothutils
   version: 0.0.1
-  sha256: 2e7805360db2df5c17a6e575e5be305533f3744080a26577c32c366a6e07ea32
+  sha256: 20fd072127a403a3ae34951e707c2590c2b9f39052cc7266d5cb85ed8f9254f0
   requires_dist:
   - mdutils>=1.6.0,<2
   - validators
