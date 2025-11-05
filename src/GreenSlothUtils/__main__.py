@@ -142,7 +142,7 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
     
     if extract_option.lower() in ["all", "variables"]:
         extract_select_to_gloss(
-            select=m.variables,
+            select=m.get_raw_variables(),
             column_names=[
                 "Name",
                 "Common Abbr.",
@@ -157,7 +157,7 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
 
     if extract_option.lower() in ["all", "parameters"]:
         extract_select_to_gloss(
-            select=m.parameters,
+            select=m.get_parameter_values(),
             column_names=[
                 "Short Description",
                 "Common Abbr.",
@@ -169,11 +169,17 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
             ],
             pythonvar_col="Python Var",
             path_to_write= modelgloss_dir / "model_params.txt",
+            value_col="Value"
         )
         
     if extract_option.lower() in ["all", "derived_variables"]:
+        surr_outputs_dict = {}
+        for surr in m.get_raw_surrogates().values():
+            for output in surr.outputs:
+                surr_outputs_dict[output] = None
+        full_dict = m.get_derived_variables() | surr_outputs_dict | m.get_raw_readouts()
         extract_select_to_gloss(
-            select=m.derived_variables,
+            select=full_dict,
             column_names=[
                 "Name",
                 "Common Abbr.",
@@ -188,7 +194,7 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
         
     if extract_option.lower() in ["all", "derived_parameters"]:
         extract_select_to_gloss(
-            select=m.derived_parameters,
+            select=m.get_derived_parameters(),
             column_names=["Short Description", "Common Abbr.", "Paper Abbr.", "Python Var"],
             pythonvar_col="Python Var",
             path_to_write= modelgloss_dir / "model_derived_params.txt",
@@ -196,7 +202,7 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
         
     if extract_option.lower() in ["all", "reactions"]:
         extract_select_to_gloss(
-            select=m.reactions,
+            select=m._reactions,
             column_names=[
                 "Short Description",
                 "Common Abbr.",
