@@ -9,7 +9,7 @@ from functools import partial
 import mxlbricks
 import mxlbricks.names as n
 from mxlpy import Model
-from mxlpy.types import Derived
+from mxlpy.types import Derived, InitialAssignment
 import pandas as pd
 
 from typing import Literal
@@ -204,12 +204,12 @@ def write_init(
 ) -> None:
 
     import_lines = f"""
-from mxlpy import Model
+from mxlpy import Model, Variable, InitialAssignment
 from .derived_quantities import include_derived_quantities
 from .rates import include_rates
 
-__all__ = ["{model_name}"]
-    """
+__all__ = ["{model_name}"]\n
+"""
 
     model_init = f"""
 def {model_name}() -> Model:
@@ -225,7 +225,12 @@ def {model_name}() -> Model:
     model_init += "        }\n    )\n\r    m.add_variables(\n        {\n"
     
     for name, value in m._variables.items():
-        model_init += f'            "{name}": {value.initial_value},\n'
+        if isinstance(value.initial_value, InitialAssignment):
+            import_lines += inspect.getsource(value.initial_value.fn) + "\n"
+            val = f'InitialAssignment(fn={value.initial_value.fn.__name__}, args={value.initial_value.args}, unit="REPLACE")'
+        else:
+            val = f'Variable({value.initial_value}, unit="REPLACE")'
+        model_init += f'            "{name}": {val},\n'
     
     model_init += "        }\n    )\n\r    m = include_derived_quantities(m)\n    m = include_rates(m)\n\n    return m"
     
@@ -257,16 +262,12 @@ def include_rates(m: Model):
     
     for reac_name, reac in m._reactions.items():
         
-        if reac.fn.__name__ in passed_reacs and not hasattr(mxlbricks.fns, reac.fn.__name__):
-            reac_fn_name = reac.fn.__name__ + "_2"
-        else:
-            reac_fn_name = reac.fn.__name__
-            
-        passed_reacs.append(reac_fn_name)
+        reac_fn_name = reac.fn.__name__
         
         if not hasattr(mxlbricks.fns, reac.fn.__name__):
             this_line = inspect.getsource(reac.fn) + "\n"
-            def_lines += this_line.replace(reac.fn.__name__, reac_fn_name)
+            if this_line not in def_lines:
+                def_lines += this_line.replace(reac.fn.__name__, reac_fn_name)
         else:
             fns_set.add(reac.fn)
         
@@ -274,7 +275,8 @@ def include_rates(m: Model):
         for variable, stoic in reac.stoichiometry.items():
             if type(stoic) is Derived:
                 if not hasattr(mxlbricks.fns, stoic.fn.__name__):
-                    def_lines += inspect.getsource(stoic.fn) + "\n"
+                    if f"def {stoic.fn.__name__}" not in def_lines:
+                        def_lines += inspect.getsource(stoic.fn) + "\n"
                 else:
                     fns_set.add(stoic.fn)
                 stoic = f"Derived(fn={stoic.fn.__name__}, args={stoic.args}, unit={stoic.unit})"
@@ -335,6 +337,15 @@ def include_derived_quantities(m: Model):
     for derived_name, derived in m._derived.items():
         
         if not hasattr(mxlbricks.fns, derived.fn.__name__):
+            other_funcs = uses_other_functions(derived.fn)
+            if other_funcs != {}:
+                
+                for other_func_name, other_func in other_funcs.items():
+                    if f"def {other_func_name}(" not in def_lines:
+                        if not hasattr(mxlbricks.fns, other_func_name):
+                            def_lines += inspect.getsource(other_func) + "\n"
+                        else:
+                            fns_set.add(other_func)
             def_lines += inspect.getsource(derived.fn) + "\n"
         else:
             fns_set.add(derived.fn)

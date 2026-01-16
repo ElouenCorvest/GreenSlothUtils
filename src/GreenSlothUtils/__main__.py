@@ -121,7 +121,7 @@ def from_model_to_gloss(model_dir: str | None, modelinfo_dir: str | None, modelg
     if modelinfo_dir is None:
         return
     
-    modelgloss_dir = modelinfo_dir / "model_to_glosses" if modelgloss_dir is None else Path(modelgloss_dir)
+    modelgloss_dir = modelinfo_dir / "model_glosses" if modelgloss_dir is None else Path(modelgloss_dir)
     
     modelgloss_dir = test_for_dir(modelgloss_dir)
     

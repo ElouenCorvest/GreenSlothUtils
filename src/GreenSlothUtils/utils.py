@@ -125,7 +125,7 @@ def write_python_from_gloss(
     update_txt_file(path_to_write=path_to_write, inp=inp)
 
 
-def export_glossselect_from_model(m: Model, gloss_path: Path, write_path: Path):
+def export_glossselect_from_model(m: Model, gloss_path: Path, write_path: Path) -> None:
     gloss = pd.read_csv(
         gloss_path,
         keep_default_na=False,
@@ -136,9 +136,10 @@ def export_glossselect_from_model(m: Model, gloss_path: Path, write_path: Path):
 
     for name in gloss["Python Var"]:
         if m.ids[name] == "derived":
-            var = m.derived[name]
+            var = m.get_raw_derived()[name]
         elif m.ids[name] == "reaction":
-            var = m.reactions[name]
+            var = m.get_raw_reactions()[name]
+            
         else:
             raise TypeError(
                 f'"{name}" is not a reaction or derived. It is a "{m.ids[name]}"'
@@ -217,7 +218,7 @@ def export_odes_as_latex(path_to_write: Path, m: Model, overwrite_flag: bool = F
         line += rf"{{ode({comp})}} ="
 
         for rate in rates:
-            specific_stoic = m.reactions[rate].stoichiometry[comp]
+            specific_stoic = m.get_raw_reactions()[rate].stoichiometry[comp]
             if type(specific_stoic) == Derived:
                 try:
                     stoic_func = getattr(bf, specific_stoic.fn.__name__)
