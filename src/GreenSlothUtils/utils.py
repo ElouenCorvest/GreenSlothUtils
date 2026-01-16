@@ -204,7 +204,7 @@ def export_glossselect_from_model(m: Model, gloss_path: Path, write_path: Path) 
     update_txt_file(path_to_write=write_path, inp=inp)
 
 
-def export_odes_as_latex(path_to_write: Path, m: Model, overwrite_flag: bool = False):
+def export_odes_as_latex(path_to_write: Path, m: Model, overwrite_flag: bool = False) -> None:
     inp = ""
 
     stoics = m.get_stoichiometries()
@@ -221,8 +221,7 @@ def export_odes_as_latex(path_to_write: Path, m: Model, overwrite_flag: bool = F
             specific_stoic = m.get_raw_reactions()[rate].stoichiometry[comp]
             if type(specific_stoic) == Derived:
                 try:
-                    stoic_func = getattr(bf, specific_stoic.fn.__name__)
-                    ltx = latexify.get_latex(stoic_func, reduce_assignments=True)
+                    ltx = latexify.get_latex(specific_stoic.fn, reduce_assignments=True)
                     if ltx.count(r"\\") > 0:
                         for i in [r"\begin{array}{l} ", r" \end{array}"]:
                             ltx = ltx.replace(i, "")
