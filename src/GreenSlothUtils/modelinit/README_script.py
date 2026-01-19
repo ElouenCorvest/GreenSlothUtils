@@ -79,13 +79,23 @@ mdFile = MdUtils(file_name=f"{Path(__file__).parents[0]}/README.md")  # noqa: N8
 
 mdFile.new_header(1, model_title)
 
+mdFile.new_header(2, "Summary")
+
 mdFile.new_paragraph(f"""[{model_title}]({model_doi})
 
                      """)
 
 mdFile.new_header(2, "Installation")
 
-mdFile.new_header(2, "Summary")
+mdFile.new_paragraph(f"""
+All the files needed to run this model are located in [model](./model) folder. To use this model you only need to copy this folder and write the following to import the model in your Python script:
+
+```python
+from model import {model_title}
+```
+
+The packages required to run this model can either be installed by using the `pixi` environment located inside the [pyproject.toml](../pyproject.toml) file or by just installing the `mxlpy` package and all its dependencies.
+                     """)
 
 mdFile.new_header(3, "Compounds")
 
