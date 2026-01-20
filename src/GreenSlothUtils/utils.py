@@ -292,8 +292,10 @@ def remove_math(
     df, query_result, query_column="Paper Abbr.", answer_column="Common Abbr."
 ):
     res = df[df[query_column] == query_result][answer_column].values[0]
+    res = res.replace("$", "")
+    res = res.replace("|", r" \vert ")
 
-    return res.replace("$", "")
+    return res
 
 
 def gloss_fromCSV(
