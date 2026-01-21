@@ -20,7 +20,7 @@ def iterate_files(path_to_scan: Path, model_name: str, target_dir: Path, dirs = 
         elif os.path.isfile(src_file):
             with open(src_file, 'r') as f:
                 content = f.read()
-            if src_file.name.endswith('.py'):
+            if src_file.name.endswith(('.py', ".ipynb")):
                 content = content.replace('{{MODEL_NAME}}', model_name)
 
             dest = target_dir / dirs / src_file.name
