@@ -183,18 +183,26 @@ def redefine_names(
     n.e = new_name_creator("E0_")
     n.total_ascorbate = new_name_creator("ASC_tot")
 
-def uses_other_functions(func: Callable) -> dict:
+def uses_other_functions(func: Callable, called_funcs: None | dict = None, first_inspect_file: str | None = None) -> dict:
+    if called_funcs is None:
+        called_funcs = {}
+        
     source = inspect.getsource(func)
     tree = ast.parse(source)
-    
     func_globals = func.__globals__
-    called_funcs = {}
+    
+    if first_inspect_file is None:
+        first_inspect_file = inspect.getsourcefile(func)
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                name = node.func.id
-                if name in func_globals and callable(func_globals[name]):
-                    called_funcs[name] = func_globals[name]
+            name = node.func.id
+            if name in func_globals and callable(func_globals[name]):
+                target_fn = func_globals[name]
+                if inspect.getsourcefile(target_fn) == first_inspect_file and name not in called_funcs:
+                    called_funcs[name] = target_fn
+                    called_funcs = uses_other_functions(target_fn, called_funcs, first_inspect_file)
+                    
     return called_funcs
 
 def write_init(
@@ -226,6 +234,10 @@ def {model_name}() -> Model:
     
     for name, value in m._variables.items():
         if isinstance(value.initial_value, InitialAssignment):
+            other_funcs = uses_other_functions(value.initial_value.fn)
+            for other_func_name, other_func in other_funcs.items():
+                if f"def {other_func_name}(" not in import_lines:
+                        import_lines += inspect.getsource(other_func) + "\n"
             import_lines += inspect.getsource(value.initial_value.fn) + "\n"
             val = f'InitialAssignment(fn={value.initial_value.fn.__name__}, args={value.initial_value.args}, unit="REPLACE")'
         else:

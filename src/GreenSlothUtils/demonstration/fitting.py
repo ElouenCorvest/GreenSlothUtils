@@ -78,6 +78,7 @@ def plot_pamfit(
     new_params: dict | None,
     pfd_str: str,
     flourescence_str: str | None,
+    npq_str: str | None,
     fit_protocol: list[tuple[float, dict]],
     fluo_data: pd.DataFrame,
     sp_lenth: float,
@@ -92,18 +93,19 @@ def plot_pamfit(
             model=fitted_model,
             pfd_str=pfd_str,
         )
-        res = res.get_variables()
-        F, Fm, NPQ = calc_pam_vals2(res[flourescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
-        
         # OG model version
         res_old = pam_sim(
             fit_protocol=make_protocol(fit_protocol),
             model=model,
             pfd_str=pfd_str,
         )
-        
-        res_old = res_old.get_variables()
+
+        F, Fm, NPQ = calc_pam_vals2(res[flourescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
         F_old, Fm_old, NPQ_old = calc_pam_vals2(res_old[flourescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
+        
+        if npq_str is not None:
+            NPQ = res[npq_str]
+            NPQ_old = res_old[npq_str]
         
     else:
         F = None
@@ -114,10 +116,9 @@ def plot_pamfit(
         NPQ_old = None
         
     
-    
     data_color = "#84569F"
-    fitted_color = "#C9E3A0"
-    og_color = "#72C0B7"
+    fitted_color = "#D64550"
+    og_color = "#5B6C5D"
     
     fig, axs = plt.subplot_mosaic([["Fluo", "NPQ"], ["Diff", "Diff"]], figsize=(10, 5))
     
@@ -140,7 +141,13 @@ def plot_pamfit(
     #Fitted Data
     axs["Fluo"].plot(F, label="Fitted Fluo", color=fitted_color) if F is not None else None
     axs["Fluo"].plot(Fm, label="Fitted Fm", lw=0, marker="^", color=fitted_color) if Fm is not None else None
-    axs["NPQ"].plot(NPQ, label="Fitted NPQ", lw=1, marker="+", color=fitted_color) if NPQ is not None else None
+    if NPQ is not None:
+        if len(NPQ) > len(fluo_data):
+            NPQ_scatter = NPQ.loc[fluo_data.index]
+        else:
+            NPQ_scatter = NPQ
+        axs["NPQ"].scatter(NPQ_scatter.index, NPQ_scatter, color=fitted_color, marker="+") if NPQ is not None else None
+    axs["NPQ"].plot(NPQ, label="Fitted NPQ", lw=1, color=fitted_color) if NPQ is not None else None
     
     # Experimental Data
     axs["Fluo"].plot(fluo_data.index, fluo_data["F1"], label="Measured Fluo", lw=0, marker="o", color=data_color)
@@ -152,8 +159,14 @@ def plot_pamfit(
     axs["Diff"].plot(data_rel, label="Measured Baseline", lw=1, ls="dashed", color=data_color, alpha=0.5)
     
     if NPQ is not None and NPQ_old is not None:
-        axs["Diff"].plot(fluo_data.index, NPQ / fluo_data["NPQ3"].values, label="Fitted / Measured", lw=1, marker="o", color=fitted_color)
-        axs["Diff"].plot(fluo_data.index, NPQ_old / fluo_data["NPQ3"].values, label="OG Model / Measured", lw=1, marker="x", color=og_color)
+        if len(NPQ) > len(fluo_data):
+            NPQ_scatter = NPQ.loc[fluo_data.index]
+            NPQ_old_scatter = NPQ_old.loc[fluo_data.index]
+        else:
+            NPQ_scatter = NPQ
+            NPQ_old_scatter = NPQ_old
+        axs["Diff"].plot(fluo_data.index, NPQ_scatter / fluo_data["NPQ3"].values, label="Fitted / Measured", lw=1, marker="o", color=fitted_color)
+        axs["Diff"].plot(fluo_data.index, NPQ_old_scatter / fluo_data["NPQ3"].values, label="OG Model / Measured", lw=1, marker="x", color=og_color)
     
     axs["Diff"].set_ylim(-0.1, 2.1)
     axs["Diff"].set_ylabel("Model / Measured NPQ [a.u.]")
@@ -169,8 +182,18 @@ def plot_pamfit(
     axs["NPQ"].set_ylabel("NPQ [a.u.]")
     
     axs["Fluo"].legend(loc="lower center", ncol=2, frameon=False, bbox_to_anchor=(0.5, 1))
-    axs["NPQ"].legend()
-    axs["Diff"].legend()
+    axs["NPQ"].legend(loc="lower center", ncol=2, frameon=False, bbox_to_anchor=(0.5, 1))
+    axs["Diff"].legend(loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1))
+    
+    param_str = "Relative Differences:\n"
+    
+    if new_params is not None:
+        for param, val in new_params.items():
+            rel_val = ((val - model.get_raw_parameters()[param].value) / model.get_raw_parameters()[param].value) * 100
+            rel_val = f"+{rel_val:.2f}%" if rel_val >= 0 else f"{rel_val:.2f}%"
+            param_str += f"{param} = {rel_val}\n"
+        
+        plt.text(0.9, 0.5, param_str, transform=fig.transFigure, ha="left", va="center")
     
     plt.tight_layout()
     
@@ -183,10 +206,11 @@ def pamfit_lmmodel(
     fit_protocol_dict: dict,
     pfd_str: str,
     flourescence_str: str,
+    npq_str: str | None,
     relative: bool,
     sat_pulse: float,
     **params
-):
+) -> np.ndarray:
     fit_protocol = pd.DataFrame(fit_protocol_dict)
     fit_protocol.index.name = "Timedelta"
     model = copy.deepcopy(model)
@@ -201,25 +225,27 @@ def pamfit_lmmodel(
     if res is None:
         return np.ones(len(npq_x)) * 1e6
     
-    res = res.get_combined()
-    
     F, Fm, NPQ = calc_pam_vals2(
-        fluo_result=res[flourescence_str],
-        protocol=fit_protocol,
-        pfd_str=pfd_str,
-        sat_pulse=sat_pulse,
-        do_relative=relative
-    )
+            fluo_result=res[flourescence_str],
+            protocol=fit_protocol,
+            pfd_str=pfd_str,
+            sat_pulse=sat_pulse,
+            do_relative=relative
+        )
     
+    if npq_str is not None:
+        NPQ = res[npq_str].loc[npq_x]
+        
     return NPQ.values - npq_y_mean
 
 def create_pamfit(
     model: Model,
     pfd_str: str,
     flourescence_str: str | None,
+    npq_str: str | None,
     pam_params_to_fit: list[str],
     relative: bool = True,
-    standard_scale: bool = True
+    standard_scale: bool = True,
 ) -> tuple[plt.Figure, plt.Axes]:
     fluo_data = pd.read_csv(Path(__file__).parent / "Data/fluo_col0_1.csv", index_col=0) # Taken from https://doi.org/10.1111/nph.18534
     # Data taken with Maxi Imaging-PAM (Walz, Germany) using Col-0 Arabidopsis thaliana plants.
@@ -250,10 +276,10 @@ def create_pamfit(
         sp_pluse=sp_intensity # 5000 µmol m-2 s-1 on IMAG-MAX/L
     )
 
-    if flourescence_str is not None:
+    if flourescence_str is not None or npq_str is not None:
         fit_model = LmfitModel(
             func=pamfit_lmmodel,
-            independent_vars=["npq_x", "npq_y_mean", "model", "fit_protocol_dict", "pfd_str", "flourescence_str", "relative","sat_pulse"],
+            independent_vars=["npq_x", "npq_y_mean", "model", "fit_protocol_dict", "pfd_str", "flourescence_str", "npq_str", "relative", "sat_pulse"],
         )
     
         initial_params = Parameters()
@@ -272,6 +298,7 @@ def create_pamfit(
             fit_protocol_dict=make_protocol(fit_protocol).to_dict(),
             pfd_str=pfd_str,
             flourescence_str=flourescence_str,
+            npq_str=npq_str,
             relative=relative,
             sat_pulse=sp_intensity,
         )
@@ -285,6 +312,7 @@ def create_pamfit(
         new_params=best_params,
         pfd_str=pfd_str,
         flourescence_str=flourescence_str,
+        npq_str=npq_str,
         fit_protocol=fit_protocol,
         fluo_data=fluo_data,
         sp_lenth=sp_lenth,

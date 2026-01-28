@@ -56,7 +56,6 @@ def create_mca_fig(
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes of the MCA plot.
     """
-    
     model = copy.deepcopy(model)
 
     # TODO Find other response coefficients to plot
@@ -109,6 +108,10 @@ def create_mca_fig(
         r"$v_{\text{Cytb6f}}$": v_cytb6f,
         r"$v_{\text{ATP Synthase}}$": v_atp_synthase,
     }
+    
+    for point, var_str in plot_vars_index.items():
+        if var_str not in model.get_variable_names():
+            plot_vars_index[point] = None
     
     plot_vars = variables.loc[[i for i in plot_vars_index.values() if i is not None]].copy()
     plot_vars = plot_vars.rename(

@@ -98,7 +98,7 @@ def create_pam_fig(
     pam_prtc, shading = make_pam_protocol(pfd_str=pfd_str, dark_light=dark_light, pulse_intensity=sat_pulse)
     
     # Make pam protocol for mxlpy simulation
-    if flourescence_str is not None and npq_str is not None:
+    if flourescence_str is not None or npq_str is not None:
         # Simulate pam protocol
         res = pam_sim(
             fit_protocol=make_protocol(pam_prtc),
@@ -110,19 +110,15 @@ def create_pam_fig(
         res = None
         
     if res is not None:
-        if npq_str is None:
-            # Calculate PAM values
-            F, Fm, NPQ = calc_pam_vals2(
+        F, Fm, NPQ = calc_pam_vals2(
                 fluo_result=res[flourescence_str],
                 protocol=make_protocol(pam_prtc),
                 pfd_str=pfd_str,
                 sat_pulse=2000,
                 do_relative=True,
             )
-        else:
+        if npq_str is not None:
             NPQ = res[npq_str]
-            F = res[flourescence_str] if flourescence_str is not None else None
-            Fm = None
     else:
         F = None
         Fm = None

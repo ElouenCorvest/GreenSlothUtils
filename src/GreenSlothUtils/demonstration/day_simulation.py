@@ -6,7 +6,16 @@ import pandas as pd
 from .utils import custom_latex
 from mxlpy import Model, Simulator, make_protocol
 import matplotlib.dates as mdates
+from IPython.display import clear_output
 
+
+def simulate_again(s: Simulator, day_prtc, time_points) -> None:
+    time_points += 100
+    if time_points > 1e4:
+        return None
+    s.simulate_protocol(day_prtc, time_points_per_step=time_points).get_result().default(simulate_again(s, day_prtc, time_points))
+    return 
+    
 
 def create_day_simulation_fig(
     model: Model,
@@ -61,7 +70,8 @@ def create_day_simulation_fig(
     day_data = day_data[day_data["horizontalPosition"] == "000"]
     day_data = day_data[day_data["verticalPosition"] == "010"]
     # Limit data to between 12:00 and 23:59 # TODO: Only want day, which is good, but not realistic with hours set. Is data maybe skewed?#
-    day_data = day_data.between_time("06:00:00", "20:00:00")
+    start_time = "07:00:00"
+    day_data = day_data.between_time(start_time, "19:00:00")
 
     fig, ax = plt.subplots()
     # Plot PAR data
@@ -78,19 +88,26 @@ def create_day_simulation_fig(
     )
     res_prior = None
     time_points = 0
-    while res_prior is None and time_points < 1e4:
+    
+    while (res_prior is None or isinstance(res_prior, Exception)) and time_points < 1e4:
+        s.clear_results()
         time_points += 100
+        clear_output(wait=True)
+        print(f"Trying simulation with {time_points} time points per step.")
         s.simulate_protocol(day_prtc, time_points_per_step=time_points)
-        res_prior = s.get_result()
-
-    # Get results and set index to datetime
+        if isinstance(s.get_result().value, Exception):
+            res_prior = None
+        else:
+            res_prior = "done"
+        
+    
     res = s.get_result().unwrap_or_err()
     variables = res.get_variables()
     variables.index = pd.to_datetime(
-        variables.index, unit="s", origin="2023-06-19 06:00:00"
+        variables.index, unit="s", origin=f"2023-06-19 {start_time}"
     )
     fluxes = res.get_fluxes()
-    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin="2023-06-19 06:00:00")
+    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin=f"2023-06-19 {start_time}")
 
     res_dict = {}
 

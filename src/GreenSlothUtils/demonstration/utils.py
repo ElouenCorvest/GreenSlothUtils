@@ -3,12 +3,14 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.colors import Normalize
 from mdutils.mdutils import MdUtils
-from mxlpy import Model, Simulator
+from mxlpy import Model, Simulator, mca, plot
 from scipy.signal import find_peaks, peak_prominences
 from sympy import Integer, Pow
 from sympy.physics.units import Unit
 from sympy.printing.latex import LatexPrinter
+from IPython.display import clear_output
 
 
 # Custom Latex Printer to handle units with negative integer exponents properly (Still need to be improved for more complex cases)
@@ -252,23 +254,30 @@ def pam_sim(
     pfd_str: str,
     dark_adaptation_time: float = 60*30,
     dark_pfd: float = 40,
-):
+) -> pd.DataFrame:
     s = Simulator(model=model)
     
     s.update_parameter(pfd_str, dark_pfd)
     res_prior = None
     time_points = 0
-    while res_prior is None and time_points < 1e5:
-        time_points += 1000
+    
+    while (res_prior is None or isinstance(res_prior, Exception)) and time_points < 1e4:
+        s.clear_results()
+        time_points += 100
+        clear_output(wait=True)
+        print(f"Trying dark-simulation with {time_points} time points per step.")
         s.simulate(dark_adaptation_time, steps=time_points)
-        res_prior = s.get_result()
+        if isinstance(s.get_result().value, Exception):
+            res_prior = None
+        else:
+            res_prior = "done"
         
     if res_prior is None:
         print("No result from dark simulation")
         return None
     
     
-    dark_y0 = s.get_result().get_new_y0()
+    dark_y0 = s.get_result().unwrap_or_err().get_new_y0()
     
     s.clear_results()
     s.update_variables(dark_y0)
@@ -276,10 +285,15 @@ def pam_sim(
     res = None
     time_points = 0
     
-    while res is None and time_points < 1e5:
-        time_points += 1000
+    while (res is None or isinstance(res, Exception)) and time_points < 1e4:
+        s.clear_results()
+        time_points += 100
+        clear_output(wait=True)
+        print(f"Trying pam-simulation with {time_points} time points per step.")
         s.simulate_protocol(fit_protocol, time_points_per_step=time_points)
-        res = s.get_result().unwrap_or_err().get_combined()
+        res = None if isinstance(s.get_result().value, Exception) else "done"
+
+    res = s.get_result().unwrap_or_err().get_combined()
     
     return res
 
@@ -331,7 +345,7 @@ def find_params_to_fit_byorder(
     to_fit_str: str,
     model: Model,
     max_order: int = 5,
-):
+) -> None:
     """Recursviely looks through provided model to find parameters influencing a given variable, reaction, derived variable or readout. It will print the parameters found at each order up to the given maximum order. The smaller the order the nearer the parameter is to the fitted entity.
 
     Args:

@@ -36,7 +36,6 @@ def get_model(model_dir: Path, model_name: str) -> Model | None:
 def compare_gloss_to_model(model_dir: str | None, modelinfo_dir: str | None, modelgloss_dir: str | None) -> None:
     """Compares glosses to model"""
     # Check all the dirs
-    print("ghello")
     model_dir = Path().absolute() if model_dir is None else Path(model_dir)
     
     model_dir = test_for_dir(model_dir)
@@ -51,7 +50,7 @@ def compare_gloss_to_model(model_dir: str | None, modelinfo_dir: str | None, mod
     if modelinfo_dir is None:
         return
     
-    modelgloss_dir = modelinfo_dir / "model_to_glosses" if modelgloss_dir is None else Path(modelgloss_dir)
+    modelgloss_dir = modelinfo_dir / "model_glosses" if modelgloss_dir is None else Path(modelgloss_dir)
     
     modelgloss_dir = test_for_dir(modelgloss_dir)
     
@@ -90,7 +89,7 @@ def initialize(path: str, model_name: str) -> None:
 @cli.command()
 @click.option("--model-dir", "-md", default=None, help="Path to model directory. Defaults to path here")
 @click.option("--modelinfo-dir", "-mid", default=None, help="Path to model info directory. Defaults to model-dir + 'model_info'")
-@click.option("--modelgloss-dir", "-mgd", default=None, help="Path to where to store csvs. Defaults to model-dir + 'model_info/model_to_glosses/'")
+@click.option("--modelgloss-dir", "-mgd", default=None, help="Path to where to store csvs. Defaults to model-dir + 'model_info/model_glosses/'")
 @click.option("--extract-option", "-eo", default="all", help="""
               \b
               Parts of the model to extract. Possibilities:
