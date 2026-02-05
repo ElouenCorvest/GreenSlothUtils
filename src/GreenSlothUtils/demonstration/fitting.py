@@ -77,7 +77,7 @@ def plot_pamfit(
     model: Model,
     new_params: dict | None,
     pfd_str: str,
-    flourescence_str: str | None,
+    fluorescence_str: str | None,
     npq_str: str | None,
     fit_protocol: list[tuple[float, dict]],
     fluo_data: pd.DataFrame,
@@ -100,8 +100,8 @@ def plot_pamfit(
             pfd_str=pfd_str,
         )
 
-        F, Fm, NPQ = calc_pam_vals2(res[flourescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
-        F_old, Fm_old, NPQ_old = calc_pam_vals2(res_old[flourescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
+        F, Fm, NPQ = calc_pam_vals2(res[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
+        F_old, Fm_old, NPQ_old = calc_pam_vals2(res_old[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
         
         if npq_str is not None:
             NPQ = res[npq_str]
@@ -205,7 +205,7 @@ def pamfit_lmmodel(
     model: Model,
     fit_protocol_dict: dict,
     pfd_str: str,
-    flourescence_str: str,
+    fluorescence_str: str | None,
     npq_str: str | None,
     relative: bool,
     sat_pulse: float,
@@ -226,7 +226,7 @@ def pamfit_lmmodel(
         return np.ones(len(npq_x)) * 1e6
     
     F, Fm, NPQ = calc_pam_vals2(
-            fluo_result=res[flourescence_str],
+            fluo_result=res[fluorescence_str],
             protocol=fit_protocol,
             pfd_str=pfd_str,
             sat_pulse=sat_pulse,
@@ -241,7 +241,7 @@ def pamfit_lmmodel(
 def create_pamfit(
     model: Model,
     pfd_str: str,
-    flourescence_str: str | None,
+    fluorescence_str: str | None,
     npq_str: str | None,
     pam_params_to_fit: list[str],
     relative: bool = True,
@@ -265,7 +265,7 @@ def create_pamfit(
     # Complete standard scaling if required
     data_mean = fluo_data["NPQ3"].mean() if standard_scale else 0
     data_std = fluo_data["NPQ3"].std() if standard_scale else 1
-    fluo_data["NPQ_standard"] = (fluo_data["NPQ3"] - data_mean) / data_std if standard_scale else fluo_data["NPQ3"]
+    fluo_data["NPQ_central"] = (fluo_data["NPQ3"] - data_mean) if standard_scale else fluo_data["NPQ3"]
     
     # Create Pam Protocol
     fit_protocol = create_pamprotocol_from_data(
@@ -276,28 +276,31 @@ def create_pamfit(
         sp_pluse=sp_intensity # 5000 µmol m-2 s-1 on IMAG-MAX/L
     )
 
-    if flourescence_str is not None or npq_str is not None:
+
+    if fluorescence_str is not None or npq_str is not None:
         fit_model = LmfitModel(
             func=pamfit_lmmodel,
-            independent_vars=["npq_x", "npq_y_mean", "model", "fit_protocol_dict", "pfd_str", "flourescence_str", "npq_str", "relative", "sat_pulse"],
+            independent_vars=["npq_x", "npq_y_mean", "model", "fit_protocol_dict", "pfd_str", "fluorescence_str", "npq_str", "relative", "sat_pulse"],
         )
     
         initial_params = Parameters()
         for param in pam_params_to_fit:
             val = model.get_raw_parameters()[param].value
-            initial_params.add(param, value=val, vary=True, min=0)
-            #max=val*1.5, min=val*0.5
+            if val < 0:
+                initial_params.add(param, value=val, vary=True, max=0)
+            else:
+                initial_params.add(param, value=val, vary=True, min=0)
     
         result = fit_model.fit(
-            data=fluo_data["NPQ_standard"].values,
+            data=fluo_data["NPQ_central"].values,
             params=initial_params,
             weights=1 / data_std,
-            npq_x=fluo_data["NPQ_standard"].index,
+            npq_x=fluo_data["NPQ_central"].index,
             npq_y_mean=data_mean,
             model=model,
             fit_protocol_dict=make_protocol(fit_protocol).to_dict(),
             pfd_str=pfd_str,
-            flourescence_str=flourescence_str,
+            fluorescence_str=fluorescence_str,
             npq_str=npq_str,
             relative=relative,
             sat_pulse=sp_intensity,
@@ -311,7 +314,7 @@ def create_pamfit(
         model=model,
         new_params=best_params,
         pfd_str=pfd_str,
-        flourescence_str=flourescence_str,
+        fluorescence_str=fluorescence_str,
         npq_str=npq_str,
         fit_protocol=fit_protocol,
         fluo_data=fluo_data,

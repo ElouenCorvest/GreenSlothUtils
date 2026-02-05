@@ -75,7 +75,7 @@ def make_pam_protocol(
 def create_pam_fig(
     model: Model,
     pfd_str: str,
-    flourescence_str: str | None,
+    fluorescence_str: str | None,
     npq_str: str | None,
     dark_light: float = 40,
     sat_pulse: float = 3000,
@@ -87,7 +87,7 @@ def create_pam_fig(
     Args:
         model (Model): An MxLpy model to simulate the PAM protocol with.
         pfd (str): The name of PPFD parameter in the mxlpy model.
-        flourescence (str): The name of the fluorescence variable in the mxlpy model.
+        fluorescence_str (str): The name of the fluorescence variable in the mxlpy model.
 
     Returns:
         tuple[plt.Figure, tuple[plt.Axes, plt.Axes]]: A tuple containing the figure and the axes.
@@ -98,7 +98,7 @@ def create_pam_fig(
     pam_prtc, shading = make_pam_protocol(pfd_str=pfd_str, dark_light=dark_light, pulse_intensity=sat_pulse)
     
     # Make pam protocol for mxlpy simulation
-    if flourescence_str is not None or npq_str is not None:
+    if fluorescence_str is not None or npq_str is not None:
         # Simulate pam protocol
         res = pam_sim(
             fit_protocol=make_protocol(pam_prtc),
@@ -111,7 +111,7 @@ def create_pam_fig(
         
     if res is not None:
         F, Fm, NPQ = calc_pam_vals2(
-                fluo_result=res[flourescence_str],
+                fluo_result=res[fluorescence_str],
                 protocol=make_protocol(pam_prtc),
                 pfd_str=pfd_str,
                 sat_pulse=2000,

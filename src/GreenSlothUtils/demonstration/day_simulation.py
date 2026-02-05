@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import neonutilities as nu
@@ -7,7 +8,10 @@ from .utils import custom_latex
 from mxlpy import Model, Simulator, make_protocol
 import matplotlib.dates as mdates
 from IPython.display import clear_output
+from pysunnoaa import noaa
 
+def strike(text: str) -> str:
+    return "".join([f"\u0336{c}" for c in text])
 
 def simulate_again(s: Simulator, day_prtc, time_points) -> None:
     time_points += 100
@@ -23,7 +27,7 @@ def create_day_simulation_fig(
     vc: str | None = None,
     atp: str | None = None,
     nadph: str | None = None,
-    flourescence: str | None = None,
+    fluorescence: str | None = None,
 ) -> tuple[plt.Figure, plt.Axes]:
     """Create a day simulation figure.
 
@@ -35,7 +39,7 @@ def create_day_simulation_fig(
         vc (str | None, optional): Name of the Rubisco carboxylase activity rate in the MxLpy model. Defaults to None.
         atp (str | None, optional): Name of the ATP variable in the MxLpy model. Defaults to None.
         nadph (str | None, optional): Name of the NADPH variable in the MxLpy model. Defaults to None.
-        flourescence (str | None, optional): Name of the fluorescence variable in the MxLpy model. Defaults to None.
+        fluorescence (str | None, optional): Name of the fluorescence variable in the MxLpy model. Defaults to None.
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and axis of the day simulation plot
@@ -70,8 +74,9 @@ def create_day_simulation_fig(
     day_data = day_data[day_data["horizontalPosition"] == "000"]
     day_data = day_data[day_data["verticalPosition"] == "010"]
     # Limit data to between 12:00 and 23:59 # TODO: Only want day, which is good, but not realistic with hours set. Is data maybe skewed?#
-    start_time = "07:00:00"
-    day_data = day_data.between_time(start_time, "19:00:00")
+    sunrise = noaa.sunrise(40, -105, -6, datetime(2023, 6, 19))
+    sunset = noaa.sunset(40, -105, -6, datetime(2023, 6, 19))
+    day_data = day_data.between_time(sunrise.time(), sunset.time())
 
     fig, ax = plt.subplots()
     # Plot PAR data
@@ -99,20 +104,19 @@ def create_day_simulation_fig(
             res_prior = None
         else:
             res_prior = "done"
-        
     
     res = s.get_result().unwrap_or_err()
     variables = res.get_variables()
     variables.index = pd.to_datetime(
-        variables.index, unit="s", origin=f"2023-06-19 {start_time}"
+        variables.index, unit="s", origin=f"2023-06-19 {sunrise.time()}"
     )
     fluxes = res.get_fluxes()
-    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin=f"2023-06-19 {start_time}")
+    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin=f"2023-06-19 {sunrise.time()}")
 
     res_dict = {}
 
     for name, pointer in zip(
-        [vc, atp, nadph, flourescence], ["Vc", "ATP", "NADPH", "Fluorescence"]
+        [vc, atp, nadph, fluorescence], ["Vc", "ATP", "NADPH", "Fluorescence"]
     ):
         if name is None:
             data = None
@@ -138,6 +142,9 @@ def create_day_simulation_fig(
     axes_pos = 0.15
     yax_list = []
 
+    #Set lim
+    ax.set_xlim(day_data.index[0], day_data.index[-1])
+    ax.set_ylim(bottom=0)
     # Create twin axis for each variable to plot
     for ax_idx, color in enumerate(color_list):
         ax_new = ax.twinx()
@@ -147,6 +154,9 @@ def create_day_simulation_fig(
         yax_list.append(ax_new)
 
     # Plot variables if they are in the model else write n.a. as ylabel
+    vc_ylabel = "Rubisco Carboxylase Activity"
+    atp_nadph_ylabel = "ATP/NADPH Ratio"
+    fluo_ylabel = "Fluorescence"
     if vc is not None:
         yax_list[0].plot(res_dict["Vc"]["data"], color=vc_color)
         yax_list[0].set_ylabel(
@@ -154,20 +164,21 @@ def create_day_simulation_fig(
             color=vc_color,
         )
     else:
-        yax_list[0].set_ylabel("Rubisco Carboxylase Activity n.a.", color=vc_color)
+        vc_ylabel = strike(vc_ylabel)
+    yax_list[0].set_ylabel(vc_ylabel, color=vc_color)
 
     if atp is not None and nadph is not None:
         yax_list[1].plot(
             res_dict["ATP"]["data"] / res_dict["NADPH"]["data"], color=atp_nadph_color
         )
-        yax_list[1].set_ylabel("ATP/NADPH", color=atp_nadph_color)
     else:
-        yax_list[1].set_ylabel("ATP/NADPH n.a.", color=atp_nadph_color)
+        atp_nadph_ylabel = strike(atp_nadph_ylabel)
+    yax_list[1].set_ylabel(atp_nadph_ylabel, color=atp_nadph_color)
 
-    if flourescence is not None:
+    if fluorescence is not None:
         yax_list[2].plot(res_dict["Fluorescence"]["data"], color=fluo_color)
-        yax_list[2].set_ylabel("Fluorescence", color=fluo_color)
     else:
-        yax_list[2].set_ylabel("Fluorescence n.a.", color=fluo_color)
+        fluo_ylabel = strike(fluo_ylabel)
+    yax_list[2].set_ylabel(fluo_ylabel, color=fluo_color)
 
     return fig, ax
