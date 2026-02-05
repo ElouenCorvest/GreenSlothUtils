@@ -140,7 +140,9 @@ def create_mca_fig(
             plot_fluxes.loc[i, :] = np.nan
             
     # Plot heatmap of MCA results
-    im1 = ax1.imshow(plot_vars.values, cmap='YlGnBu_r', interpolation='nearest')
+    cmap_vars = copy.copy(plt.get_cmap("YlGnBu_r"))
+    cmap_vars.set_bad(color="white")
+    im1 = ax1.imshow(plot_vars.values, cmap=cmap_vars, interpolation="nearest")
     fig.colorbar(im1, ax=ax1)
     ax1.set_title("Variables")
     ax1.set_xticks(np.arange(len(plot_vars.columns)), labels=plot_vars.columns, rotation=45, ha="right")
@@ -148,7 +150,9 @@ def create_mca_fig(
     ax1.set_yticks(np.arange(len(plot_vars.index)))
     ax1.set_yticklabels(plot_vars.index)
     
-    im2 = ax2.imshow(plot_fluxes.values, cmap='YlOrRd_r', interpolation='nearest')
+    cmap_fluxes = copy.copy(plt.get_cmap("YlOrRd_r"))
+    cmap_fluxes.set_bad(color="white")
+    im2 = ax2.imshow(plot_fluxes.values, cmap=cmap_fluxes, interpolation="nearest")
     fig.colorbar(im2, ax=ax2)
     ax2.set_title("Fluxes")
     ax2.set_xticks(np.arange(len(plot_fluxes.columns)), labels=plot_fluxes.columns, rotation=45, ha="right")
@@ -160,12 +164,11 @@ def create_mca_fig(
     for ax, plot_df in zip([ax1, ax2], [plot_vars, plot_fluxes]):
         for text in ax.get_yticklabels():
             if plot_df.loc[text.get_text(), :].isna().all():
-                text.set_alpha(0.3)
+                text.set_color("#b3b3b3ff")
 
         for text in ax.get_xticklabels():
             if plot_df.loc[:, text.get_text()].isna().all():
-                text.set_alpha(0.3)
-
+                text.set_color("#b3b3b3ff")
     plt.tight_layout()
 
     return fig, (ax1, ax2)

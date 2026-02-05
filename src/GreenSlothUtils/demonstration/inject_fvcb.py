@@ -263,7 +263,7 @@ def create_fvcb_fig(
 
     # Plot FvCB results
     ax.plot(
-        pco2_array, A_fvcb, label="FvCB Assimilation", color="black", lw=5, alpha=0.7
+        pco2_array, A_fvcb, label="FvCB Assimilation", color="black", lw=5
     )
     ax.plot(
         pco2_array,
@@ -271,7 +271,6 @@ def create_fvcb_fig(
         label="FvCB Vc",
         color="lightgray",
         lw=5,
-        alpha=0.7,
         ls="--",
     )
     # Plot model results if available
@@ -314,7 +313,7 @@ def create_fvcb_fig(
     ]
 
     # Add text annotations for legend
-    for idx, text in zip([1, 2, 3, 6], ["Vc", "Assimilation", "FvCB", "Model"]):
+    for idx, text in zip([1, 2, 3, 6], ["RuBisCO\nCarboxylase", "Assimilation", "FvCB", "Model"]):
         ax.text(
             legend_coords[idx][0],
             legend_coords[idx][1],

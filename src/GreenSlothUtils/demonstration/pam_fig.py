@@ -57,7 +57,7 @@ def make_pam_protocol(
         if item[1][pfd_str] == pulse_intensity:
             continue
         elif item[1][pfd_str] == dark_light:
-            color = "black"
+            color = "#b3b3b3ff"
             pfd = dark_light
         else:
             color = "white"
@@ -110,13 +110,19 @@ def create_pam_fig(
         res = None
         
     if res is not None:
-        F, Fm, NPQ = calc_pam_vals2(
-                fluo_result=res[fluorescence_str],
-                protocol=make_protocol(pam_prtc),
-                pfd_str=pfd_str,
-                sat_pulse=2000,
-                do_relative=True,
-            )
+        if fluorescence_str is not None: 
+            F, Fm, NPQ = calc_pam_vals2(
+                    fluo_result=res[fluorescence_str],
+                    protocol=make_protocol(pam_prtc),
+                    pfd_str=pfd_str,
+                    sat_pulse=2000,
+                    do_relative=True,
+                )
+        else:
+            F = None
+            Fm = None
+            NPQ = pd.Series(dtype=float)
+            
         if npq_str is not None:
             NPQ = res[npq_str]
     else:
@@ -169,16 +175,19 @@ def create_pam_fig(
             shade["x1"],
             shade["x2"],
             color=shade["color"],
-            alpha=0.3,
             lw=0,
         )
+        
+        if shade["color"] == "white":
+            color = "white"
+        else:
+            color = "black"
         
         rect = Rectangle(
             (shade["x1"], rect_y),
             shade["x2"] - shade["x1"],
             rect_height,
-            facecolor=shade["color"],
-            alpha=1,
+            facecolor=color,
             clip_on=False,
             transform=axs["Fluo"].transData,
             edgecolor="black",

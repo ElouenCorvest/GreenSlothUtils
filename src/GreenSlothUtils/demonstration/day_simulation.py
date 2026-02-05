@@ -73,10 +73,8 @@ def create_day_simulation_fig(
     # Use only the same position values
     day_data = day_data[day_data["horizontalPosition"] == "000"]
     day_data = day_data[day_data["verticalPosition"] == "010"]
-    # Limit data to between 12:00 and 23:59 # TODO: Only want day, which is good, but not realistic with hours set. Is data maybe skewed?#
-    sunrise = noaa.sunrise(40, -105, -6, datetime(2023, 6, 19))
-    sunset = noaa.sunset(40, -105, -6, datetime(2023, 6, 19))
-    day_data = day_data.between_time(sunrise.time(), sunset.time())
+    # Limit PPFD to values above 40 to focus on the day period
+    day_data = day_data[day_data["PARMean"] >= 40]
 
     fig, ax = plt.subplots()
     # Plot PAR data
@@ -107,11 +105,9 @@ def create_day_simulation_fig(
     
     res = s.get_result().unwrap_or_err()
     variables = res.get_variables()
-    variables.index = pd.to_datetime(
-        variables.index, unit="s", origin=f"2023-06-19 {sunrise.time()}"
-    )
+    variables.index = pd.to_datetime(variables.index, unit="s", origin=day_data.index[0])
     fluxes = res.get_fluxes()
-    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin=f"2023-06-19 {sunrise.time()}")
+    fluxes.index = pd.to_datetime(fluxes.index, unit="s", origin=day_data.index[0])
 
     res_dict = {}
 
@@ -136,7 +132,7 @@ def create_day_simulation_fig(
     # Colors of sim results
     vc_color = "#fa9442"
     atp_nadph_color = "#008aa1"
-    fluo_color = "#1b3644"
+    fluo_color = "#DB5764"
     color_list = [vc_color, atp_nadph_color, fluo_color]
 
     axes_pos = 0.15

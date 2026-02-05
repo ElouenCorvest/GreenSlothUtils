@@ -10,68 +10,6 @@ from mxlpy import Model, Simulator, make_protocol, plot
 
 from .utils import calc_pam_vals2, create_pamprotocol_from_data, pam_sim
 
-
-def pamfit_func_lstsq(
-    params,
-    model: Model,
-    fit_data: pd.DataFrame,
-    pfd_str: str,
-    flourescence_str: str,
-    relative: bool = True,
-    standard_scale: bool = True
-):
-    # Create Pam Protocol
-    fit_protocol = create_pamprotocol_from_data(
-        data=fit_data,
-        par_column="PAR",
-        pfd_str=pfd_str,
-        time_sp=720/1000,
-        sp_pluse=5000
-    )
-    
-    model_new = copy.deepcopy(model)
-    model_new.update_parameters(params.valuesdict())
-    
-    res = pam_sim(
-        fit_protocol=make_protocol(fit_protocol),
-        model=model_new,
-        pfd_str=pfd_str,
-    )
-    
-    if res is None:
-        print("No result from simulation")
-        return np.ones(len(fit_data)) * 1e6
-    
-    res = res.get_variables()
-    F, Fm, NPQ = calc_pam_vals2(
-        fluo_result=res[flourescence_str],
-        protocol=make_protocol(fit_protocol),
-        pfd_str=pfd_str,
-        sat_pulse=5000,
-        do_relative=relative
-    )
-    
-    fig, axs = plot_pamfit(
-        model=model,
-        new_params=model_new.get_raw_parameters(),
-        pfd_str=pfd_str,
-        fit_protocol=fit_protocol,
-        fluo_data=fit_data,
-        sp_lenth=720 / 1000,
-    )
-    
-    plt.show()
-    
-    # TODO: Standardize difference to account for different scales inform
-    mean = fit_data["NPQ3"].mean()
-    std = fit_data["NPQ3"].std()
-    
-    if standard_scale:
-        diff = (NPQ.values - mean) / std - (fit_data["NPQ3"].values - mean) / std
-    else:
-        diff = NPQ.values - fit_data["NPQ3"].values
-
-    return diff
     
 def plot_pamfit(
     model: Model,
@@ -83,6 +21,13 @@ def plot_pamfit(
     fluo_data: pd.DataFrame,
     sp_lenth: float,
 ) -> tuple[plt.Figure, plt.Axes]:
+    
+    F = None
+    Fm = None
+    NPQ = None
+    F_old = None
+    Fm_old = None
+    NPQ_old = None
     
     if new_params is not None:
         fitted_model = copy.deepcopy(model)
@@ -100,20 +45,13 @@ def plot_pamfit(
             pfd_str=pfd_str,
         )
 
-        F, Fm, NPQ = calc_pam_vals2(res[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
-        F_old, Fm_old, NPQ_old = calc_pam_vals2(res_old[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
+        if fluorescence_str is not None:
+            F, Fm, NPQ = calc_pam_vals2(res[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
+            F_old, Fm_old, NPQ_old = calc_pam_vals2(res_old[fluorescence_str], protocol=make_protocol(fit_protocol), pfd_str=pfd_str, do_relative=True)
         
         if npq_str is not None:
             NPQ = res[npq_str]
             NPQ_old = res_old[npq_str]
-        
-    else:
-        F = None
-        Fm = None
-        NPQ = None
-        F_old = None
-        Fm_old = None
-        NPQ_old = None
         
     
     data_color = "#84569F"
@@ -128,14 +66,14 @@ def plot_pamfit(
     t_before = 0
     for t, vals in cleaned_prtc.iterrows():
         if vals[pfd_str] == 40:
-            color = "black"
+            color = "#b3b3b3ff"
         elif vals[pfd_str] == 90:
-            color = "grey"
+            color = "#d9d9d9ff"
         else:
-            color = "lightgrey"
+            color = "#f2f2f2ff"
         for ax in axs:
             axs[ax].set_xlim(0, fluo_data.index[-1])
-            axs[ax].axvspan(t_before, t.total_seconds(), facecolor=color, alpha=0.3, edgecolor="none")
+            axs[ax].axvspan(t_before, t.total_seconds(), facecolor=color, edgecolor="none")
         t_before = t.total_seconds()
     
     #Fitted Data
@@ -156,7 +94,7 @@ def plot_pamfit(
     data_rel = fluo_data["NPQ3"].copy()
     data_rel = data_rel.replace(0, 1)
     data_rel = data_rel / data_rel
-    axs["Diff"].plot(data_rel, label="Measured Baseline", lw=1, ls="dashed", color=data_color, alpha=0.5)
+    axs["Diff"].plot(data_rel, label="Measured Baseline", lw=1, ls="dashed", color=data_color)
     
     if NPQ is not None and NPQ_old is not None:
         if len(NPQ) > len(fluo_data):
@@ -193,7 +131,7 @@ def plot_pamfit(
             rel_val = f"+{rel_val:.2f}%" if rel_val >= 0 else f"{rel_val:.2f}%"
             param_str += f"{param} = {rel_val}\n"
         
-        plt.text(0.9, 0.5, param_str, transform=fig.transFigure, ha="left", va="center")
+    plt.text(0.9, 0.5, param_str, transform=fig.transFigure, ha="left", va="center")
     
     plt.tight_layout()
     
@@ -225,16 +163,16 @@ def pamfit_lmmodel(
     if res is None:
         return np.ones(len(npq_x)) * 1e6
     
-    F, Fm, NPQ = calc_pam_vals2(
-            fluo_result=res[fluorescence_str],
-            protocol=fit_protocol,
-            pfd_str=pfd_str,
-            sat_pulse=sat_pulse,
-            do_relative=relative
-        )
-    
     if npq_str is not None:
         NPQ = res[npq_str].loc[npq_x]
+    else:
+        F, Fm, NPQ = calc_pam_vals2(
+                fluo_result=res[fluorescence_str],
+                protocol=fit_protocol,
+                pfd_str=pfd_str,
+                sat_pulse=sat_pulse,
+                do_relative=relative
+            )
         
     return NPQ.values - npq_y_mean
 
