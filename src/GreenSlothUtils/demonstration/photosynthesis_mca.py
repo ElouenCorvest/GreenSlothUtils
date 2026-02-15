@@ -2,7 +2,8 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mxlpy import Model, mca, plot
+from matplotlib.colors import LinearSegmentedColormap
+from mxlpy import Model, mca
 
 
 def create_mca_fig(
@@ -102,9 +103,9 @@ def create_mca_fig(
 
     # Point custom names to appropriate given fluxes in MCA results
     plot_flux_index = {
-        r"$v_{\text{rubisco}}$": v_rubisco,
         r"$v_{\text{PSII}}$": v_psii,
         r"$v_{\text{PSI}}$": v_psi,
+        r"$v_{\text{rubisco}}$": v_rubisco,
         r"$v_{\text{Cytb6f}}$": v_cytb6f,
         r"$v_{\text{ATP Synthase}}$": v_atp_synthase,
     }
@@ -138,11 +139,23 @@ def create_mca_fig(
     for i in plot_flux_index.keys():
         if i not in plot_fluxes.index:
             plot_fluxes.loc[i, :] = np.nan
-            
+
+    # Specific order of rows and columns
+    plot_vars = plot_vars[plot_columns.keys()]
+    plot_vars = plot_vars.loc[plot_vars_index.keys()]
+    plot_fluxes = plot_fluxes[plot_columns.keys()]
+    plot_fluxes = plot_fluxes.loc[plot_flux_index.keys()]
+    
+    
     # Plot heatmap of MCA results
     cmap_vars = copy.copy(plt.get_cmap("YlGnBu_r"))
+
+    colors = ["#8a0100", "#f4f5da", "#010b7c"] 
+    cmap_name = "Vars"
+    cmap_vars = LinearSegmentedColormap.from_list(cmap_name, colors, N=256)
     cmap_vars.set_bad(color="white")
-    im1 = ax1.imshow(plot_vars.values, cmap=cmap_vars, interpolation="nearest")
+    max_coeff = np.nanmax(np.abs(plot_vars.values))
+    im1 = ax1.imshow(plot_vars.values, cmap=cmap_vars, interpolation="nearest", vmin=-max_coeff, vmax=max_coeff)
     fig.colorbar(im1, ax=ax1)
     ax1.set_title("Variables")
     ax1.set_xticks(np.arange(len(plot_vars.columns)), labels=plot_vars.columns, rotation=45, ha="right")
@@ -150,9 +163,12 @@ def create_mca_fig(
     ax1.set_yticks(np.arange(len(plot_vars.index)))
     ax1.set_yticklabels(plot_vars.index)
     
-    cmap_fluxes = copy.copy(plt.get_cmap("YlOrRd_r"))
+    colors = ["#518568", "#f4f5da", "#aa5db8"   ] 
+    cmap_name = "Fluxes"
+    cmap_fluxes = LinearSegmentedColormap.from_list(cmap_name, colors, N=256)
     cmap_fluxes.set_bad(color="white")
-    im2 = ax2.imshow(plot_fluxes.values, cmap=cmap_fluxes, interpolation="nearest")
+    max_coeff = np.nanmax(np.abs(plot_fluxes.values))
+    im2 = ax2.imshow(plot_fluxes.values, cmap=cmap_fluxes, interpolation="nearest", vmin=-max_coeff, vmax=max_coeff)
     fig.colorbar(im2, ax=ax2)
     ax2.set_title("Fluxes")
     ax2.set_xticks(np.arange(len(plot_fluxes.columns)), labels=plot_fluxes.columns, rotation=45, ha="right")
@@ -161,14 +177,19 @@ def create_mca_fig(
     ax2.set_yticklabels(plot_fluxes.index)
 
     # Set axis labels and if values are NaN set alpha of text to 0.3
-    for ax, plot_df in zip([ax1, ax2], [plot_vars, plot_fluxes]):
-        for text in ax.get_yticklabels():
-            if plot_df.loc[text.get_text(), :].isna().all():
-                text.set_color("#b3b3b3ff")
-
+    for text in ax1.get_yticklabels():
+        if plot_vars_index[text.get_text()] is None:
+            text.set_color("#b3b3b3ff")
+            
+    for text in ax2.get_yticklabels():
+        if plot_flux_index[text.get_text()] is None:
+            text.set_color("#b3b3b3ff")
+    
+    for ax in [ax1, ax2]:
         for text in ax.get_xticklabels():
-            if plot_df.loc[:, text.get_text()].isna().all():
+            if plot_columns[text.get_text()] is None:
                 text.set_color("#b3b3b3ff")
+                
     plt.tight_layout()
 
     return fig, (ax1, ax2)
