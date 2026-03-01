@@ -139,6 +139,11 @@ def export_glossselect_from_model(m: Model, gloss_path: Path, write_path: Path) 
             var = m.get_raw_derived()[name]
         elif m.ids[name] == "reaction":
             var = m.get_raw_reactions()[name]
+        elif m.ids[name] == "surrogate":
+            rhs = f"Surrogate {name}"
+            continue
+        elif m.ids[name] == "readout":
+            var = m.get_raw_readouts()[name]
             
         else:
             raise TypeError(
